@@ -3,6 +3,7 @@ name: backend-ci-cd
 on:
   push:
     branches: ["dev", "main"]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -26,9 +27,9 @@ jobs:
         id: tag
         run: |
           if [ "${GITHUB_REF_NAME}" = "dev" ]; then
-            echo "TAG=dev" >> $GITHUB_OUTPUT
+            echo "TAG=dev" >> "$GITHUB_OUTPUT"
           else
-            echo "TAG=prod" >> $GITHUB_OUTPUT
+            echo "TAG=prod" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build and push
@@ -69,19 +70,35 @@ jobs:
 
             IMAGE="ghcr.io/abdelhasoloji/mastermind-juriscope-api:${TAG}"
 
-            sudo mkdir -p /opt/mastermind/apps/juriscope/api-runtime            cd /opt/mastermind/apps/juriscope/api-runtime
-            /opt/mastermind/apps/juriscope/scripts/fetch_env_api.sh "$BRANCH"
-            # map branch->env file
-            if [ "$BRANCH" = "dev" ]; then ENV_FILE=".env.dev"; else ENV_FILE=".env"; fi
+            wait_health () {
+              local url="$1"; local max=30; local i=1
+              while [ $i -le $max ]; do
+                if curl -fsS "$url" >/dev/null 2>&1; then
+                  echo "health ok ($i/$max)"
+                  return 0
+                fi
+                sleep 1
+                i=$((i+1))
+              done
+              echo "health failed after ${max}s: $url" >&2
+              return 1
+            }
+
+            sudo mkdir -p /opt/mastermind/apps/juriscope/api-runtime
+            cd /opt/mastermind/apps/juriscope/api-runtime
+
+            # Infisical en pause: on exige les env files deja presents
             test -f "$ENV_FILE"
-sudo docker pull "$IMAGE"
+
+            sudo docker pull "$IMAGE"
             sudo docker rm -f "$NAME" >/dev/null 2>&1 || true
 
             sudo docker run -d \
               --name "$NAME" \
               --restart unless-stopped \
-              --env-file ./"$ENV_FILE" \
-              -p 127.0.0.1:${PORT}:4000 \
+              --env-file "./$ENV_FILE" \
+              -p "127.0.0.1:${PORT}:4000" \
               "$IMAGE"
 
+            wait_health "http://127.0.0.1:${PORT}/health"
             sudo docker ps --filter "name=$NAME"
