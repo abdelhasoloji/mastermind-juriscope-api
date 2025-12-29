@@ -58,16 +58,20 @@ jobs:
             if [ "$BRANCH" = "dev" ]; then
               TAG="dev"
               NAME="juriscope-api-dev"
+              PORT="8084"
+              ENV_FILE=".env.dev"
             else
               TAG="prod"
               NAME="juriscope-api-prod"
+              PORT="8082"
+              ENV_FILE=".env"
             fi
 
             IMAGE="ghcr.io/abdelhasoloji/mastermind-juriscope-api:${TAG}"
 
             sudo mkdir -p /opt/mastermind/apps/juriscope/api-runtime
             cd /opt/mastermind/apps/juriscope/api-runtime
-            test -f .env
+            test -f "$ENV_FILE"
 
             sudo docker pull "$IMAGE"
             sudo docker rm -f "$NAME" >/dev/null 2>&1 || true
@@ -75,8 +79,8 @@ jobs:
             sudo docker run -d \
               --name "$NAME" \
               --restart unless-stopped \
-              --env-file ./.env \
-              -p 127.0.0.1:8082:4000 \
+              --env-file ./"$ENV_FILE" \
+              -p 127.0.0.1:${PORT}:4000 \
               "$IMAGE"
 
             sudo docker ps --filter "name=$NAME"
