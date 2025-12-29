@@ -69,11 +69,12 @@ jobs:
 
             IMAGE="ghcr.io/abdelhasoloji/mastermind-juriscope-api:${TAG}"
 
-            sudo mkdir -p /opt/mastermind/apps/juriscope/api-runtime
-            cd /opt/mastermind/apps/juriscope/api-runtime
+            sudo mkdir -p /opt/mastermind/apps/juriscope/api-runtime            cd /opt/mastermind/apps/juriscope/api-runtime
+            /opt/mastermind/apps/juriscope/scripts/fetch_env_api.sh "$BRANCH"
+            # map branch->env file
+            if [ "$BRANCH" = "dev" ]; then ENV_FILE=".env.dev"; else ENV_FILE=".env"; fi
             test -f "$ENV_FILE"
-
-            sudo docker pull "$IMAGE"
+sudo docker pull "$IMAGE"
             sudo docker rm -f "$NAME" >/dev/null 2>&1 || true
 
             sudo docker run -d \
